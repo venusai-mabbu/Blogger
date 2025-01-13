@@ -148,35 +148,7 @@ module.exports.get_otp = async (req, res) => {
         {
             res.status(200).send({"message":"success"});
         }
-        // else if(!validator.isEmail(email)){
-        //     res.status(400).json({ errors: "Enter valid E-mail"});
-        // }  remove afterwards
-        // else{
-        //     const mailOptions = {
-        //         from: {
-        //             name: "Venusai",
-        //             // address: process.env.USER
-        //             address: "venusai.mabbu.2003@gmail.com"
 
-        //         },
-        //         to: email,
-        //         subject: 'Verification code for account creation',
-        //         text: otpNum
-        //     }
-        //     const sendMail =async (transporter, mailOptions) => {
-        //         try {
-        //             await transporter.sendMail(mailOptions);
-        //             res.status(200).json({ otp: "sent" });
-        //             console.log('sent')
-        //         }
-        //         catch (err) {
-        //             res.status(400).json({ errors: "Enter valid E-mail"});
-        //             console.log(err);
-                    
-        //         }
-        //     }
-        //     sendMail(transporter,mailOptions);   
-        // }
 
     }
     catch (err) {
