@@ -17,8 +17,9 @@
 #exploreBtn{
   position: absolute; 
   right: 20%;
-  bottom: 12%;
+  bottom: 6%;
   background-color: #cd5909;
+  
 }
 
 #description{
@@ -139,3 +140,6 @@
     width: calc(100% + 8px);
   }
 }
+
+
+ 
