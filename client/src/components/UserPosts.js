@@ -38,9 +38,16 @@ function UserPosts() {
         <div>
             <Header />
             {(userInfo?.username) && (
-                (<>
+                (<div 
+                    style={{
+                        backgroundColor: 'rgb(226, 230, 205)', // Orange background
+                        padding: '20px', // Padding for spacing around the content
+                        borderRadius: '8px', // Rounded corners for the outer div
+                        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)', // Optional: soft shadow for depth
+                        margin: '10px', // Optional: margin around the div
+                    }}>
                     <Typography variant='h6' paddingLeft={'12px'} paddingTop={'12px'}>{`${userInfo?.username?.toUpperCase()}'s Posts`}</Typography>
-                    <Container sx={{ paddingTop: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <Container sx={{ paddingTop: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor:'rgb(226, 230, 205)'}}>
                         {(userPosts?.posts?.length === 0) ?
                             (<p>No posts found.</p>) :
                             userPosts.posts?.map(post => (
@@ -48,7 +55,7 @@ function UserPosts() {
 
                             ))}
                     </Container>
-                </>)
+                </div>)
             )}
             {!(userInfo?.username) && (
                 <h2 style={{ textAlign: 'center' }}>You logged out!!</h2>

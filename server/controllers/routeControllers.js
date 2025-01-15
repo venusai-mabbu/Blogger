@@ -1,3 +1,7 @@
+const natural = require('natural');
+const math = require('mathjs');
+
+
 const User = require('../models/User');
 const Post = require('../models/Post');
 const nodemailer = require('nodemailer');
@@ -20,6 +24,60 @@ const transporter = nodemailer.createTransport({
     }
 })
 
+function preprocessText(text) {
+    const tokenizer = new natural.WordTokenizer();
+    const words = tokenizer.tokenize(text.toLowerCase());
+    return words;
+  }
+  
+  // Function to create a term frequency (TF) vector for a document
+  function createVector(text, allWords) {
+    const words = preprocessText(text);
+    const vector = Array(allWords.length).fill(0);
+    words.forEach(word => {
+      const index = allWords.indexOf(word);
+      if (index !== -1) {
+        vector[index]++;
+      }
+    });
+    return vector;
+  }
+  
+  // Function to calculate cosine similarity between two vectors
+  function cosineSimilarity(vecA, vecB) {
+    const dotProduct = math.dot(vecA, vecB);
+    const magnitudeA = math.sqrt(math.dot(vecA, vecA));
+    const magnitudeB = math.sqrt(math.dot(vecB, vecB));
+    return dotProduct / (magnitudeA * magnitudeB);
+  }
+  
+  async function fetchPosts() {
+    try {
+      // Fetch posts from MongoDB database (replace with your database collection)
+      const posts = await Post.find();
+      const allWordsSet = new Set();
+  
+      // Create a list of all unique words in the database
+      posts.forEach(post => {
+        const words = preprocessText(post.title + " " + post.description);
+        words.forEach(word => allWordsSet.add(word));
+      });
+  
+      const allWords = Array.from(allWordsSet);
+  
+      // Create vectors for each post
+      const documentVectors = posts.map(post => {
+        const text = post.title + " " + post.description;
+        return createVector(text, allWords);
+      });
+  
+      return { posts, allWords, documentVectors };
+    } catch (error) {
+      console.error("Error fetching posts from the database:", error);
+      throw new Error('Database fetch error');
+    }
+  }
+  
 
 
 const sendMail = async (transporter, mailOptions) => {
@@ -936,39 +994,49 @@ module.exports.get_notifications = async (req, res) => {
 module.exports.get_searchresults = async (req, res) => {
     const { searchValue } = req.params;
     try {
-        const posts = await Post.find({
-            $or: [
-                { title: { $regex: searchValue, $options: 'i' } }, // Case-insensitive search
-                { description: { $regex: searchValue, $options: 'i' } }
-            ]
-        });
-        // console.log(posts);
-        const authorIds = posts.map(post => post.author);
+      // Fetch posts and preprocess them
+      const { posts, allWords, documentVectors } = await fetchPosts();
+  
+      // Create a vector for the search query
+      const queryVector = createVector(searchValue, allWords);
+  
+      // Calculate similarities between the query and each post
+      const similarities = documentVectors.map(docVec => cosineSimilarity(queryVector, docVec));
+  
+      // Sort the posts by similarity in descending order
+      const sortedPosts = similarities
+        .map((similarity, index) => ({
+          post: posts[index],
+          similarity,
+        })).filter(result => result.similarity >= 0.1) // Filter out results with similarity less than 0.2
 
-        // Query authors based on their IDs
-        const authors = await User.find({ _id: { $in: authorIds } });
-
-        // Create a map of author IDs to authors for easy lookup
-        const authorMap = authors.reduce((map, author) => {
-            map[author._id] = author;
-            return map;
-        }, {});
-
-        // Update each post object with author details
-        const postsWithAuthorInfo = posts.map(post => {
-            return {
-                ...post.toObject(), // Convert Mongoose document to plain JavaScript object
-                author: authorMap[post.author]
-            };
-        });
-        // console.log(postsWithAuthorInfo)
-        res.json(postsWithAuthorInfo);
-
+        .sort((a, b) => b.similarity - a.similarity); // Sort by similarity
+  
+      // Get the author details for each post
+      const authorIds = sortedPosts.map(result => result.post.author);
+      const authors = await User.find({ _id: { $in: authorIds } });
+  
+      // Create a map of author IDs to authors
+      const authorMap = authors.reduce((map, author) => {
+        map[author._id] = author;
+        return map;
+      }, {});
+  
+      // Add author details to each post
+      const postsWithAuthorInfo = sortedPosts.map(result => ({
+        ...result.post.toObject(),
+        author: authorMap[result.post.author],
+        similarity: result.similarity, // Add similarity score to each post
+      }));
+  
+      // Return the posts with author info and sorted by relevance
+      //console.log(postsWithAuthorInfo);
+      res.json(postsWithAuthorInfo);
+    } catch (error) {
+      res.status(500).json({ message: 'Server Error' });
     }
-    catch (error) {
-        res.status(500).json({ message: 'Server Error' });
-    }
-}
+  };
+  
 
 module.exports.get_notificationcount = async (req, res) => {
     const { userid } = req.params;
